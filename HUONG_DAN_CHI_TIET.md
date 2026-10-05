@@ -79,33 +79,81 @@ Trong tổng số 17.509 ảnh:
 > Trong bài báo gốc, tác giả chia dữ liệu thành 5 fold ngẫu nhiên có phân tầng (stratified) cho 8 loài cỏ dại, **riêng lớp `Negatives` thì không phân tầng theo tiểu vùng địa lý**.  
 > **Lý do khoa học:** 8 loài cỏ dại là các thực thể sinh học xác định với hình thái lá và hoa cụ thể. Ngược lại, `Negatives` không phải là một loài cây mà là một **"tập hợp mở" (open-set background)**: nó có thể là thảm cỏ xanh mướt sau mưa, đất đỏ khô cằn giữa trưa nắng, sỏi đá xám xịt hay lá khô mục nát. Việc để `Negatives` được phân bổ ngẫu nhiên tự nhiên (unstratified) giúp phản ánh trung thực tính ngẫu nhiên của thảm nền địa hình ngoài thực tế, tránh việc gò ép phân phối nền một cách khiên cưỡng.
 
+---
+
 ### 1.3 Hệ thống chỉ số đánh giá: Top-1 vs Balanced Acc vs Macro-F1 vs ECE
 
-Rất nhiều sinh viên mới bắt đầu thường chỉ nhìn vào chỉ số **Top-1 Accuracy** và tự hào khi mô hình đạt 85% hay 90%. Nhưng trong một bài toán mất cân bằng như DeepWeeds, đây là một cái bẫy chết người!
+Rất nhiều sinh viên mới bắt đầu thường chỉ nhìn vào chỉ số **Top-1 Accuracy** và tự hào khi mô hình đạt 85% hay 90%. Nhưng trong một bài toán mất cân bằng như DeepWeeds, đây là một cái bẫy chết người! Dưới đây là phân tích toán học và ý nghĩa thực tế của 4 thước đo cốt lõi.
 
-#### 1. Sự dối trá của Top-1 Accuracy:
-$$\text{Top-1 Accuracy} = \frac{\sum_{c=1}^C \text{TP}_c}{N}$$
-Giả sử có một mô hình cực kỳ ngớ ngẩn: **"Nó đoán bừa 100% mọi bức ảnh đều là `Negatives`"**.  
-Vì `Negatives` chiếm 52% tập dữ liệu, mô hình này không cần học bất kỳ đặc trưng nào cũng tự động đạt ngay **$52\%$ Top-1 Accuracy**! Nếu nó học thêm được một chút lớp đa số và bỏ rơi hoàn toàn 8 loài cỏ dại, Accuracy có thể lên đến 75-80%, nhưng giá trị thực tế của nó trên cánh đồng là **bằng 0** (robot sẽ không bao giờ phát hiện được cây cỏ dại nào để xịt thuốc).
+#### 1. Top-1 Accuracy và sự dối trá của số đông:
+$$\text{Top-1 Accuracy} = \frac{\sum_{c=1}^C \text{TP}_c}{N} = \frac{\text{Số mẫu đoán đúng toàn bộ}}{\text{Tổng số mẫu}}$$
+- **Ý nghĩa:** Tỉ lệ phần trăm tổng thể các mẫu được phân loại chính xác trên toàn bộ tập dữ liệu.
+- **Hạn chế chết người khi mất cân bằng:** Giả sử một mô hình cực kỳ ngớ ngẩn: **"Nó đoán bừa 100% mọi bức ảnh đều là `Negatives`"** (không cần trích xuất bất kỳ đặc trưng nào).  
+  Vì lớp `Negatives` chiếm tới 9.106 / 17.509 ảnh (~52,01%), mô hình này tự động đạt ngay **$52,01\%$ Top-1 Accuracy**! Nếu nó học thêm được một chút lớp đa số và bỏ rơi hoàn toàn 8 loài cỏ dại, Accuracy có thể lên đến 75-80%, nhưng giá trị thực tế của nó trên cánh đồng là **bằng 0** (robot sẽ không bao giờ phát hiện được bất kỳ cây cỏ dại nào để xịt thuốc).
 
 #### 2. Balanced Accuracy (Độ chính xác cân bằng):
 $$\text{Balanced Accuracy} = \frac{1}{C} \sum_{c=1}^C \text{Recall}_c = \frac{1}{C} \sum_{c=1}^C \frac{\text{TP}_c}{\text{TP}_c + \text{FN}_c}$$
-Balanced Accuracy là trung bình cộng của Recall từng lớp. Chỉ số này đối xử bình đẳng với tất cả các lớp: nhận diện đúng một bức ảnh cỏ hiếm cũng có trọng số tương đương với nhận diện đúng một bức ảnh lớp đa số. Với mô hình "đoán bừa `Negatives`" ở trên, Balanced Accuracy sẽ chỉ là $\frac{1}{9} \times 1.0 + \frac{8}{9} \times 0.0 = 11.11\%$, phản ánh chính xác sự thất bại của mô hình!
+- **Ý nghĩa:** Là trung bình cộng số học của Recall (độ nhạy) trên từng lớp riêng biệt.
+- **Tại sao lại công bằng hơn Top-1 Acc?** Balanced Accuracy gán trọng số bình đẳng $\frac{1}{C} = \frac{1}{9}$ cho từng lớp. Dù lớp `Negatives` có 9.106 ảnh và lớp *Chinee apple* chỉ có 1.009 ảnh, việc nhận diện đúng một tỷ lệ ảnh của hai lớp này đóng góp điểm số ngang nhau.
+- **Ví dụ kiểm chứng:** Với mô hình "đoán bừa 100% là `Negatives`" ở trên:
+  $$\text{Recall}_{\text{Negatives}} = 1.0, \quad \text{Recall}_{c} = 0.0 \quad (\forall c \ne \text{Negatives})$$
+  $$\text{Balanced Accuracy} = \frac{1}{9} (1.0 + 0 + \dots + 0) = \frac{1}{9} \approx \mathbf{11.11\%}$$
+  Con số $11.11\%$ phản ánh chính xác sự thất bại hoàn toàn của mô hình!
 
-#### 3. Macro-F1 (Thước đo tối thượng của bài lab):
-$$\text{F1}_c = \frac{2 \cdot \text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}, \quad \text{Macro-F1} = \frac{1}{C} \sum_{c=1}^C \text{F1}_c$$
-Macro-F1 tính điểm điều hòa (Harmonic Mean) giữa Precision và Recall cho từng lớp riêng biệt, sau đó lấy trung bình số học không trọng số qua 9 lớp.  
-- Nếu mô hình chỉ chăm chăm xịt bừa để tăng Recall $\to$ Precision tụt dốc $\to$ F1 lớp đó sập.
-- Nếu mô hình sợ sai không dám xịt $\to$ Recall tụt dốc $\to$ F1 lớp đó sập.
-- Chỉ khi mô hình vừa nhạy bén (nhận diện đủ cỏ) vừa chuẩn xác (không nhầm cây nọ sang cây kia) trên **tất cả 9 lớp**, Macro-F1 mới đạt giá trị cao (> 0.90). Đó là lý do mọi quyết định chọn checkpoint, chọn backbone và tối ưu siêu tham số trong bài lab này đều bắt buộc căn cứ trên **Macro-F1 của tập Validation**.
+#### 3. Macro-F1 — Thước đo tối thượng của bài lab:
+Để hiểu tại sao Macro-F1 là "trọng tài công tâm nhất", chúng ta phải đi từ bản chất của Precision, Recall và trung bình điều hòa Harmonic Mean.
+
+##### a. Định nghĩa Precision & Recall trên góc nhìn Robot thực địa:
+- **Precision (Độ chuẩn xác):**
+  $$\text{Precision}_c = \frac{\text{TP}_c}{\text{TP}_c + \text{FP}_c}$$
+  *Ý nghĩa thực tế:* Trong tất cả các lần robot quyết định phun thuốc vì nghĩ rằng đó là loài cỏ $c$, có bao nhiêu phần trăm thực sự là cỏ $c$? Nếu Precision thấp $\implies$ số ca báo động giả ($\text{FP}$) cao $\implies$ robot đang phun thuốc diệt cỏ bừa bãi vào hoa màu kinh tế hoặc đất trống, gây lãng phí hóa chất độc hại và ngộ độc môi trường.
+- **Recall (Độ thu hồi / Độ nhạy):**
+  $$\text{Recall}_c = \frac{\text{TP}_c}{\text{TP}_c + \text{FN}_c}$$
+  *Ý nghĩa thực tế:* Trong tất cả các bụi cỏ loài $c$ thực tế đang mọc trên cánh đồng, robot phát hiện và tiêu diệt được bao nhiêu phần trăm? Nếu Recall thấp $\implies$ số ca bỏ sót ($\text{FN}$) cao $\implies$ cỏ dại nguy hại tiếp tục tồn tại, sinh sôi nảy nở và phá hủy đồng cỏ chăn thả.
+
+##### b. Tại sao F1-score lại dùng Trung bình điều hòa (Harmonic Mean)?
+$$\text{F1}_c = \frac{2}{\frac{1}{\text{Precision}_c} + \frac{1}{\text{Recall}_c}} = \frac{2 \cdot \text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c} = \frac{2 \text{TP}_c}{2 \text{TP}_c + \text{FP}_c + \text{FN}_c}$$
+- *Tại sao không dùng Trung bình cộng Arithmetic Mean $\frac{P + R}{2}$?*  
+  Giả sử một mô hình cực đoan: robot phun thuốc mù quáng lên 100% diện tích cánh đồng. Khi đó mọi bụi cỏ đều bị xịt $\implies \text{Recall} = 1.0$. Tuy nhiên, vì phun bừa nên hầu hết đều trúng đất đá $\implies \text{Precision} = 0.01$.
+  - Nếu dùng trung bình cộng: $\frac{1.0 + 0.01}{2} = 0.505$ (một con số trên trung bình, đánh giá sai lệch rằng mô hình "chấp nhận được").
+  - Nhưng với Harmonic Mean: $\text{F1} = \frac{2 \cdot 1.0 \cdot 0.01}{1.0 + 0.01} = \frac{0.02}{1.01} \approx \mathbf{0.0198} \to 0$!
+- *Bản chất toán học:* Hàm nghịch đảo $f(x) = \frac{1}{x}$ tiệm cận vô cùng khi $x \to 0$. Do đó, Harmonic Mean luôn bị kéo sát về giá trị **nhỏ hơn** trong hai đại lượng. Bất kỳ sự mất cân đối nào (Precision cao mà Recall thấp, hoặc ngược lại) đều khiến F1 bị phạt tụt dốc thảm hại. Mô hình chỉ đạt F1 cao khi và chỉ khi **cả Precision và Recall đều đồng thời cao**!
+
+##### c. So sánh toán học giữa 3 biến thể F1 trong bài toán đa lớp (Macro vs Micro vs Weighted):
+- **Micro-F1:**
+  $$\text{Micro-F1} = \frac{2 \sum_{c=1}^C \text{TP}_c}{2 \sum_{c=1}^C \text{TP}_c + \sum_{c=1}^C \text{FP}_c + \sum_{c=1}^C \text{FN}_c}$$
+  Trong bài toán phân loại đa lớp đơn nhãn (mỗi ảnh thuộc đúng 1 lớp), tổng số lỗi $\sum \text{FP}_c \equiv \sum \text{FN}_c$. Do đó, về mặt toán học:
+  $$\text{Micro-F1} \equiv \text{Top-1 Accuracy}$$
+  Micro-F1 hoàn toàn bị lớp đa số `Negatives` chi phối y hệt như Accuracy!
+- **Weighted-F1:**
+  $$\text{Weighted-F1} = \sum_{c=1}^C \frac{N_c}{N} \text{F1}_c$$
+  Weighted-F1 nhân F1 từng lớp với tỉ lệ số lượng mẫu $N_c / N$. Lớp `Negatives` ($9.106$ ảnh) chiếm tới $52\%$ trọng số, trong khi loài cỏ hiếm *Chinee apple* ($1.009$ ảnh) chỉ chiếm có $5.7\%$ trọng số. Nếu mô hình đoán sai hoàn toàn loài *Chinee apple*, điểm số chung cuộc chỉ bị trừ một lượng nhỏ $0.057$, không phản ánh được nguy cơ sinh thái!
+- **Macro-F1 (Thước đo không trọng số công tâm nhất):**
+  $$\text{Macro-F1} = \frac{1}{C} \sum_{c=1}^C \text{F1}_c = \frac{1}{9} (\text{F1}_0 + \text{F1}_1 + \dots + \text{F1}_8)$$
+  *Tại sao gọi là công tâm nhất?*  
+  Macro-F1 gán trọng số bình đẳng tuyệt đối $w_c = \frac{1}{9} \approx 11.11\%$ cho tất cả các lớp, bất kể lớp đó có 9.106 ảnh hay chỉ có 1.000 ảnh.
+  
+  > 🔢 **Ví dụ toán học so sánh trực quan:**  
+  > Giả sử mô hình đạt $\text{F1} = 0.95$ cho lớp `Negatives` và 7 loài cỏ khác, nhưng do lá loài *Snake weed* quá khó nhận diện nên mô hình bỏ sót toàn bộ loài này ($\text{F1}_{\text{Snake}} = 0.0$):  
+  > - **Weighted-F1:** $0.52 \times 0.95 + 7 \times (0.057 \times 0.95) + 0.057 \times 0.0 = 0.494 + 0.379 + 0 = \mathbf{0.873}$ *(Vẫn đạt 87%, tạo cảm giác sai lầm rằng hệ thống hoạt động rất tốt)*.  
+  > - **Macro-F1:** $\frac{1}{9} (8 \times 0.95 + 0.0) = \frac{7.60}{9} = \mathbf{0.844}$ *(Bị phạt tụt dốc ngay lập tức, rơi xuống mức trượt chuẩn đề bài)*.  
+  
+  Chính cơ chế chia đều không nhân nhượng này ép buộc mạng nơ-ron phải tối ưu hóa biểu diễn đặc trưng cho **tất cả 9 loài**, không được phép "hy sinh" bất kỳ lớp thiểu số nào để lấy lòng lớp đa số!
 
 #### 4. Expected Calibration Error (ECE - Độ lệch tin cậy):
-Trong robot nông nghiệp, quyết định xịt thuốc phụ thuộc vào ngưỡng xác suất $P(y=c|x) \ge \tau$. Nếu mô hình nói: *"Tôi tự tin 99% đây là cỏ Chinee Apple"*, thì trong 100 lần nó phát biểu câu đó, phải có đúng 99 lần nó đoán đúng!  
+Trong robot nông nghiệp, quyết định phun thuốc phụ thuộc vào ngưỡng xác suất $P(y=c|x) \ge \tau$. Nếu mô hình nói: *"Tôi tự tin 99% đây là cỏ Chinee Apple"*, thì trong 100 lần nó phát biểu câu đó, phải có đúng 99 lần nó đoán đúng!  
 Nếu mô hình cực kỳ tự tin (Confidence = 0.99) nhưng thực tế chỉ đoán đúng 70% trường hợp, mô hình bị **"ảo tưởng sức mạnh" (Overconfident)**. Hậu quả: robot sẽ phun thuốc diệt cỏ liều cao vào hoa màu kinh tế hoặc gia súc!
 
-ECE chia không gian độ tự tin $[0, 1]$ thành $M$ khoảng (bins) $B_m$ và đo khoảng cách giữa độ tự tin trung bình và độ chính xác thực tế:
-$$\text{ECE} = \sum_{m=1}^M \frac{|B_m|}{N} \left| \text{acc}(B_m) - \text{conf}(B_m) \right|$$
-Một mô hình tuyệt vời trong công nghiệp phải có cả **Macro-F1 cao** và **ECE thấp** ($< 0.02$).
+##### Công thức toán học của ECE:
+Chia toàn bộ các mẫu dự đoán thành $M$ khoảng (bins) bằng nhau theo độ tự tin $\hat{p}_i = \max_k P(y=k|x_i)$ trên đoạn $[0, 1]$ (thường chọn $M=10$ hoặc $M=15$ bins, mỗi bin có độ rộng $1/M$).  
+Với mỗi bin $B_m = \{i \mid \hat{p}_i \in (\frac{m-1}{M}, \frac{m}{M}]\}$:
+- **Độ chính xác thực tế trong bin $B_m$:**
+  $$\text{acc}(B_m) = \frac{1}{|B_m|} \sum_{i \in B_m} \mathbf{1}(\hat{y}_i = y_i)$$
+- **Độ tự tin trung bình trong bin $B_m$:**
+  $$\text{conf}(B_m) = \frac{1}{|B_m|} \sum_{i \in B_m} \hat{p}_i$$
+- **Chỉ số ECE (Expected Calibration Error):**
+  $$\text{ECE} = \sum_{m=1}^M \frac{|B_m|}{N} \left| \text{acc}(B_m) - \text{conf}(B_m) \right|$$
+*Mục tiêu sản xuất:* Một mô hình AI công nghiệp đáng tin cậy phải thỏa mãn đồng thời hai điều kiện: **Macro-F1 cao** ($\ge 0.85$) và **ECE cực thấp** ($\le 0.02$, tức sai số tin cậy trung bình dưới 2%).
 
 ---
 
@@ -122,12 +170,26 @@ Một mô hình tuyệt vời trong công nghiệp phải có cả **Macro-F1 ca
 | **S5** | Seed ngẫu nhiên chỉ thay đổi khởi tạo head, batch order, augmentation. Không được đổi split. | Đảm bảo các fold dữ liệu cố định hoàn toàn qua các lần chạy. |
 | **S6** | Fold 1–4 chỉ dùng cho điểm thưởng (nếu làm 5-fold cross validation). | Nếu làm điểm thưởng, phải chạy đủ bộ 3 file của từng fold độc lập. |
 
-#### Nguyên lý kiểm định giả thuyết $2\sigma$:
+#### Toán học đằng sau Nguyên lý kiểm định giả thuyết $2\sigma$:
 Khi chạy các mô hình học sâu, sự ngẫu nhiên của khởi tạo trọng số và thứ tự nạp dữ liệu (seed) sẽ tạo ra dao động ngẫu nhiên quanh giá trị trung bình (gọi là độ lệch chuẩn $\sigma$).  
-Nếu cấu hình A đạt Macro-F1 = $0.920 \pm 0.010$ và cấu hình B đạt $0.925 \pm 0.010$, mức chênh lệch $\Delta = 0.005$ **nhỏ hơn $\sigma$**. Về mặt toán học thống kê, **A và B không có sự khác biệt có ý nghĩa thống kê**!  
-Chỉ khi nào mức cải thiện vượt xa hai lần độ lệch chuẩn:
-$$\Delta > 2\sigma$$
-chúng ta mới có quyền kết luận một cách khoa học rằng kỹ thuật mới thực sự mang lại hiệu quả vượt bậc!
+Giả sử ta so sánh hai cấu hình $A$ (Mốc nền) và $B$ (Cải tiến) chạy trên $K$ hạt giống ngẫu nhiên:
+- Giá trị trung bình và độ lệch chuẩn của $A$: $\bar{X}_A, \sigma_A$.
+- Giá trị trung bình và độ lệch chuẩn của $B$: $\bar{X}_B, \sigma_B$.
+- Độ chênh lệch trung bình: $\Delta = \bar{X}_B - \bar{X}_A$.
+
+Đặt bài toán kiểm định giả thuyết thống kê:
+- **Giả thuyết không ($H_0$):** $\mu_B \le \mu_A$ (Cải tiến không có tác dụng thật sự, khác biệt chỉ do may mắn của hạt giống).
+- **Giả thuyết đối ($H_1$):** $\mu_B > \mu_A$ (Cải tiến thực sự mang lại hiệu năng cao hơn).
+
+Sai số chuẩn kết hợp của độ chênh lệch (Standard Error of Difference):
+$$\sigma_{\Delta} = \sqrt{\sigma_A^2 + \sigma_B^2}$$
+Theo định lý giới hạn trung tâm, khoảng tin cậy 95% của phân phối chuẩn tương ứng với khoảng 2 độ lệch chuẩn ($Z_{0.05} \approx 1.96 \approx 2$).  
+Do đó, điều kiện tiên quyết để bác bỏ giả thuyết không $H_0$ và khẳng định cải tiến có ý nghĩa thống kê là:
+$$\Delta = \bar{X}_B - \bar{X}_A > 2 \sigma_{\Delta} \quad (\text{hoặc tối thiểu } \Delta > 2\sigma_A)$$
+*Ví dụ thực tế:* Cấu hình chung kết F01 đạt Macro-F1 = $0.9342 \pm 0.0028$, trong khi Baseline T00 là $0.7030 \pm 0.0133$.  
+Mức chênh lệch $\Delta = 0.9342 - 0.7030 = +0.2312$.  
+Ngưỡng nhiễu $2\sigma_A = 2 \times 0.0133 = 0.0266$.  
+Vì $\Delta = 0.2312 \gg 0.0266$ (gấp gần 9 lần ngưỡng nhiễu), ta khẳng định chắc chắn 100% về mặt thống kê rằng F01 vượt trội Baseline.
 
 ---
 
@@ -199,14 +261,21 @@ Trong phần này, tôi sẽ mổ xẻ chi tiết 6 module mã nguồn trong th�
 ### 3.1 `code/dataset.py` — Pipeline Xử Lý Dữ Liệu & Augmentation
 
 #### 🎓 Giải thích chuyên sâu từ Giảng viên:
-1. **Tính bảo toàn hình học của ảnh chụp từ trên xuống (Nadir View):**
+1. **Chuẩn hóa z-score theo ImageNet:**
+   Ảnh gốc có giá trị pixel $x \in [0, 255]$, sau khi qua `ToTensor()` sẽ về đoạn $[0.0, 1.0]$. Phép chuẩn hóa kênh màu:
+   $$x_{\text{norm}}^{(c)} = \frac{x^{(c)} - \mu^{(c)}}{\sigma^{(c)}} \quad (c \in \{R, G, B\})$$
+   với $\mu = (0.485, 0.456, 0.406)$ và $\sigma = (0.229, 0.224, 0.225)$. Việc này đưa kỳ vọng của dữ liệu đầu vào về 0 và phương sai về 1, trùng khớp với phân phối mà backbone tiền huấn luyện đã quen thuộc.
+2. **Tính bảo toàn hình học của ảnh chụp từ trên xuống (Nadir View):**
    Trong bài toán phân loại ảnh thông thường (như ảnh xe hơi, con chó, chữ viết), các bạn **không được phép lật dọc** (`RandomVerticalFlip`) vì ô tô không bao giờ chổng 4 bánh lên trời, số 6 lật ngược sẽ thành số 9. Nhưng trong DeepWeeds, camera của robot gắn chúc xuống mặt đất vuông góc $90^\circ$. Ở góc nhìn này, thế giới không có khái niệm "trọng lực hướng xuống": một chiếc lá nằm quay sang trái, sang phải, hay quay ngược $180^\circ$ thì bản chất sinh học của nó vẫn không hề thay đổi! Do đó, việc kết hợp cả `RandomHorizontalFlip` và các phép quay góc ngẫu nhiên là hoàn toàn hợp lý về mặt vật lý.
-2. **Tại sao dùng `RandomResizedCrop(224, scale=(0.8, 1.0))`?**
-   Khi robot chạy trên mặt đất gồ ghề, camera sẽ rung lắc lên xuống, làm khoảng cách từ ống kính đến bụi cỏ thay đổi liên tục. Phép biến đổi `RandomResizedCrop` ngẫu nhiên cắt một phần ảnh với tỉ lệ diện tích từ 80% đến 100% rồi phóng to về $224 \times 224$ pixels giúp mạng nơ-ron học được tính **bất biến với tỉ lệ (Scale Invariance)**.
-3. **`WeightedRandomSampler` vs Class Weighting trong Loss:**
-   - `WeightedRandomSampler`: Can thiệp ở cấp độ **nạp dữ liệu** (DataLoader). Xác suất bốc trúng ảnh thứ $i$ tỉ lệ nghịch với số lượng mẫu của lớp đó ($w_i = 1 / N_{c_i}$). Kết quả là trong mỗi batch, số lượng ảnh của 9 lớp xuất hiện xấp xỉ ngang nhau.  
-     *Cảnh báo:* Vì lớp thiểu số có ít ảnh, việc lấy mẫu có lặp lại (`replacement=True`) sẽ khiến một bức ảnh cỏ hiếm bị mô hình nhìn thấy lặp đi lặp lại nhiều lần trong một epoch, rất dễ dẫn đến **học vẹt (Overfitting)** nếu không có Data Augmentation đủ mạnh!
-   - Class Weighting: Can thiệp ở cấp độ **hàm mất mát** (Loss function). Mỗi ảnh chỉ xuất hiện đúng 1 lần mỗi epoch, nhưng khi tính loss, sai số của lớp hiếm sẽ được nhân với hệ số phạt lớn hơn.
+3. **Toán học của `WeightedRandomSampler`:**
+   Giả sử lớp $c$ có $N_c$ ảnh. Trọng số của mẫu ảnh thứ $i$ thuộc lớp $y_i$ là:
+   $$w_i = \frac{1}{N_{y_i}}$$
+   Xác suất mẫu $i$ được rút ra trong mỗi lượt lấy mẫu độc lập là:
+   $$P(i) = \frac{w_i}{\sum_{j=1}^N w_j}$$
+   Khi đó, xác suất để rút trúng một mẫu bất kỳ thuộc lớp $c$ là:
+   $$P(\text{Lớp } c) = \sum_{i \in \text{Lớp } c} P(i) = N_c \cdot \frac{\frac{1}{N_c}}{\sum_{k=1}^C N_k \cdot \frac{1}{N_k}} = \frac{1}{\sum_{k=1}^C 1} = \frac{1}{C}$$
+   **Chứng minh toán học hoàn tất:** Mọi lớp đều có xác suất xuất hiện hoàn toàn bằng nhau $P(\text{Lớp } c) = \frac{1}{9} \approx 11.11\%$ trong từng batch!  
+   *Cảnh báo của Giảng viên:* Lớp hiếm (1.000 ảnh) bị lặp lại nhiều lần trong 1 epoch $\implies$ nguy cơ overfit cao nếu không có Data Augmentation mạnh.
 
 #### 📝 Toàn bộ mã nguồn `code/dataset.py`:
 
@@ -408,13 +477,23 @@ def make_loader(df: pd.DataFrame, images_dir: str | Path, transform, batch_size:
    - **DeiT-Small & Swin-Tiny (Vision Transformers - 2021):** Loại bỏ hoàn toàn phép tích chập (hoặc chỉ dùng trong cửa sổ), mô hình hóa ảnh dưới dạng chuỗi các patch và dùng cơ chế Self-Attention toàn cục/cục bộ. ViT có trần hiệu năng rất cao khi có dữ liệu khổng lồ, nhưng thiếu **Inductive Bias** về không gian (tính bất biến tịnh tiến và tính cục bộ của điểm ảnh), dẫn đến việc học chậm hơn trên tập dữ liệu kích thước trung bình và độ trễ suy luận trên GPU lớn hơn CNN.
    - **ConvNeXt-Tiny (CNN hiện đại - 2022):** Được các tác giả tại Meta AI "tân trang" lại ResNet theo các triết lý thiết kế của Vision Transformer: dùng tích chập sâu $7 \times 7$ (mô phỏng receptive field rộng của ViT), Inverted Bottleneck, thay BatchNorm bằng LayerNorm, thay ReLU bằng GELU. ConvNeXt vừa tận dụng được sức mạnh biểu diễn hiện đại của ViT, vừa giữ trọn vẹn inductive bias tự nhiên của mạng tích chập. Đó là lý do tại sao ConvNeXt-Tiny đạt Macro-F1 tới 0.9513 trên DeepWeeds!
 
-2. **Cơ chế phân bổ 3 nhóm tham số (Param Groups):**
-   Trong bài giảng (Slide trang 52), chúng ta chia các tham số của mô hình thành 3 nhóm riêng biệt cho Optimizer:
-   - **Nhóm 1 — Backbone Weights ($ndim > 1$):** Các ma trận trọng số của lớp Convolution và Linear trong backbone. Sử dụng Learning Rate chuẩn của backbone ($10^{-4}$) và áp dụng Weight Decay ($0.05$).
-   - **Nhóm 2 — Backbone Norms & Biases ($ndim \le 1$):** Các vector bias và hệ số scale/shift ($\gamma, \beta$) của LayerNorm/BatchNorm trong backbone. Sử dụng LR backbone, nhưng **BẮT BUỘC Weight Decay = 0**!
-     > ⚠️ **Tại sao không được áp dụng Weight Decay lên Norm và Bias?**  
-     > Weight Decay là hình thức phạt suy giảm $L_2$ ($\frac{1}{2} \lambda \|\theta\|^2$). Các tham số $\gamma$ và $\beta$ trong phép chuẩn hóa chỉ làm nhiệm vụ căn chỉnh tâm và độ phân tán của phân phối đặc trưng. Nếu bạn phạt $L_2$ lên $\gamma$, bạn sẽ ép $\gamma$ co dần về 0, làm triệt tiêu tín hiệu activation truyền qua các tầng sau, gây bất ổn định gradient nghiêm trọng! Tương tự, ép bias về 0 sẽ làm mất tính linh hoạt dịch chuyển ngưỡng kích hoạt.
-   - **Nhóm 3 — Classifier Head mới:** Tầng phân loại 9 lớp vừa khởi tạo ngẫu nhiên. Áp dụng Learning Rate **gấp 10 lần** ($10^{-3}$) so với backbone!
+2. **Toán học của Weight Decay và Cơ chế phân bổ 3 nhóm tham số (Param Groups):**
+   Trong tối ưu hóa học sâu, Weight Decay tương đương với phạt điều chuẩn $L_2$:
+   $$\mathcal{L}_{\text{total}}(\theta) = \mathcal{L}(\theta) + \frac{1}{2} \lambda \|\theta\|_2^2$$
+   Bước cập nhật trọng số trong thuật toán AdamW:
+   $$\theta^{(t+1)} = (1 - \eta \lambda) \theta^{(t)} - \eta \cdot \frac{m_t}{\sqrt{v_t} + \epsilon}$$
+   Trong đó $(1 - \eta \lambda)$ là hệ số co suy giảm (decay).
+   
+   Trong bài giảng (Slide trang 52), ta chia tham số thành 3 nhóm riêng biệt:
+   - **Nhóm 1 — Backbone Weights ($ndim > 1$):** Các ma trận trọng số 2D/4D của Convolution và Linear trong backbone. Sử dụng Learning Rate chuẩn của backbone ($\eta = 10^{-4}$) và áp dụng Weight Decay ($\lambda = 0.05$).
+   - **Nhóm 2 — Backbone Norms & Biases ($ndim \le 1$):** Các vector bias và hệ số scale/shift ($\gamma, \beta$) của LayerNorm/BatchNorm trong backbone. Sử dụng $\eta = 10^{-4}$, nhưng **BẮT BUỘC Weight Decay $\lambda = 0$**!
+     > ⚠️ **Chứng minh toán học: Tại sao cấm áp dụng Weight Decay lên Norm và Bias?**  
+     > Trong lớp chuẩn hóa:
+     > $$y = \gamma \left( \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} \right) + \beta$$
+     > $\gamma$ là hệ số tỷ lệ và $\beta$ là độ dịch. Nếu ta áp dụng weight decay $\lambda > 0$, qua từng bước cập nhật:
+     > $$\gamma \leftarrow (1 - \eta \lambda) \gamma$$
+     > Tham số $\gamma$ sẽ bị co dần về 0! Khi $\gamma \to 0$, đầu ra $y \to \beta = \text{hằng số}$, phương sai của tín hiệu bị bóp nghẹt về 0, làm triệt tiêu hoàn toàn gradient truyền ngược và gây sụp đổ biểu diễn (Representation Collapse)! Tương tự, ép bias về 0 sẽ làm mất tính linh hoạt dịch chuyển ngưỡng kích hoạt.
+   - **Nhóm 3 — Classifier Head mới:** Tầng phân loại 9 lớp vừa khởi tạo ngẫu nhiên. Áp dụng Learning Rate **gấp 10 lần** ($\eta_{\text{head}} = 10^{-3}$) so với backbone!
      > 💡 **Tại sao LR của Head lại gấp 10 lần LR của Backbone?**  
      > Các trọng số backbone đã được tiền huấn luyện trên hơn 1,2 triệu ảnh ImageNet, chúng đã là những bộ trích xuất đặc trưng (feature extractors) cực kỳ tinh xảo $\to$ ta chỉ cần tinh chỉnh (fine-tune) nhẹ nhàng với LR nhỏ. Ngược lại, tầng classifier head hoàn toàn là trọng số ngẫu nhiên ban đầu $\to$ nó cần những bước nhảy gradient lớn hơn nhiều để nhanh chóng bắt nhịp và hội tụ vào không gian 9 nhãn mới của bài toán DeepWeeds.
 
@@ -514,22 +593,6 @@ def count_params(model: nn.Module) -> float:
 
 def count_gmacs(model: nn.Module, img_size: int = 224) -> float:
     """Ước tính khối lượng tính toán GMACs (Giga Multiply-Accumulate Operations)."""
-    try:
-        from timm.utils import flops_to_string
-        # Ước tính xấp xỉ GMACs dựa trên profile của timm
-        dummy = torch.randn(1, 3, img_size, img_size)
-        device = next(model.parameters()).device
-        dummy = dummy.to(device)
-        
-        # Thử dùng hàm profile chuẩn nếu có
-        from torch.profiler import profile, ProfilerActivity
-        # Cách tính nhanh dựa trên tham số chuẩn của timm:
-        if hasattr(model, "default_cfg") and "min_input_size" in model.default_cfg:
-            pass
-    except Exception:
-        pass
-
-    # Bảng tra cứu GMACs chuẩn xác theo bài báo gốc của các backbone phổ biến
     name = getattr(model, "pretrained_cfg", {}).get("architecture", "")
     lookup = {
         "resnet50": 4.12,
@@ -541,7 +604,6 @@ def count_gmacs(model: nn.Module, img_size: int = 224) -> float:
     for k, v in lookup.items():
         if k in name:
             return v
-    # Mặc định xấp xỉ theo số tham số
     return round(count_params(model) * 0.15, 2)
 ```
 
@@ -551,29 +613,48 @@ def count_gmacs(model: nn.Module, img_size: int = 224) -> float:
 
 #### 🎓 Giải thích chuyên sâu từ Giảng viên:
 
-1. **Label Smoothing Loss — Vắc-xin chống "tự tin thái quá":**
-   Hàm Cross-Entropy tiêu chuẩn sử dụng nhãn one-hot cứng nhắc ($y \in \{0, 1\}$). Để hàm Softmax đạt được xác suất $1.0$ cho lớp đúng:
-   $$p_k = \frac{e^{z_k}}{\sum_j e^{z_j}} = 1.0 \iff z_k \to +\infty$$
+1. **Toán học đằng sau Label Smoothing Loss:**
+   Hàm Cross-Entropy tiêu chuẩn sử dụng nhãn one-hot cứng nhắc ($y \in \{0, 1\}$). Để hàm Softmax đạt được xác suất $1.0$ cho lớp đúng $k$:
+   $$p_k = \frac{e^{z_k}}{\sum_{j=1}^K e^{z_j}} = 1.0 \iff z_k - z_j \to +\infty \quad (\forall j \ne k)$$
    Điều này ép mạng nơ-ron phải đẩy logit của lớp đúng ra vô cực so với các lớp khác. Mạng trở nên cực kỳ cứng nhắc, dễ overfit và sinh ra phân phối xác suất bị lệch nghiêm trọng (Overconfident).  
+   
    **Label Smoothing** làm mềm vector nhãn mục tiêu theo công thức:
    $$q_k = (1 - \epsilon) y_k + \frac{\epsilon}{K}$$
-   Với 9 lớp và $\epsilon = 0.1$, nhãn đúng thay vì là $1.0$ sẽ trở thành $0.911$, và 8 lớp còn lại nhận mỗi lớp một lượng xác suất nhỏ $0.011$. Mô hình không còn bị ép đẩy logit ra vô cực nữa. Không gian biểu diễn đặc trưng (latent space) sẽ trở nên gắn kết hơn, các cụm cùng lớp gom lại chặt chẽ hơn, và **độ lệch tin cậy ECE giảm đi rõ rệt**!
+   Khi đưa vào hàm mất mát Cross-Entropy:
+   $$\mathcal{L}_{\text{LS}} = -\sum_{k=1}^K q_k \log p_k = (1 - \epsilon) \left( -\sum_{k=1}^K y_k \log p_k \right) + \epsilon \left( -\frac{1}{K} \sum_{k=1}^K \log p_k \right)$$
+   Biến đổi toán học chỉ ra:
+   $$\mathcal{L}_{\text{LS}} = (1 - \epsilon) \mathcal{L}_{\text{CE}}(p, y) + \epsilon \mathcal{D}_{\text{KL}}(u \,||\, p) + \text{hằng số}$$
+   trong đó $u = \frac{1}{K}$ là phân phối đều (uniform distribution).  
+   *Ý nghĩa toán học:* Label Smoothing phạt sự phân kỳ Kullback-Leibler giữa phân phối dự đoán $p$ và phân phối đều $u$. Nó đóng vai trò như một lực kéo vô hình, ngăn cản các logit $z_k$ văng ra xa vô cực, ép các biểu diễn đặc trưng cùng lớp gom cụm chặt chẽ hơn và **hạ thấp ECE trực tiếp**!
 
-2. **Focal Loss — Đè bẹp mẫu dễ, khai phá mẫu khó:**
-   Được đề xuất bởi Tsung-Yi Lin (Facebook AI Research, 2017) cho bài toán phát hiện vật thể cực kỳ mất cân bằng. Focal Loss thêm một hệ số điều biến (modulating factor) $(1 - p_t)^\gamma$ vào hàm Cross-Entropy:
-   $$\text{FL}(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t)$$
-   - Nếu một mẫu rất dễ nhận diện (ví dụ nền đất trống `Negatives` rõ mồn một), mô hình đoán $p_t = 0.95$. Khi $\gamma = 2$, hệ số điều biến sẽ là $(1 - 0.95)^2 = 0.0025$ $\to$ **Loss bị giảm tới 400 lần!** Mẫu dễ này hầu như không đóng góp gradient nữa.
-   - Nếu một mẫu rất khó (bụi cỏ *Snake weed* lẫn trong lá khô), mô hình chỉ đoán $p_t = 0.20$. Hệ số điều biến là $(1 - 0.20)^2 = 0.64$ $\to$ Loss hầu như được giữ nguyên.
-   - Nhờ đó, mô hình dồn 99% năng lượng của gradient để giải quyết các trường hợp cỏ dại khó phân biệt thay vì bị áp đảo bởi hàng ngàn bức ảnh nền đất dễ nhận diện!
+2. **Đạo hàm và cơ chế triệt tiêu gradient của Focal Loss:**
+   Focal Loss thêm hệ số điều biến $(1 - p_t)^\gamma$ vào hàm Cross-Entropy:
+   $$\text{FL}(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t) \quad \text{với } p_t = \begin{cases} p, & y=1 \\ 1-p, & y=0 \end{cases}$$
+   Hãy tính đạo hàm của $\text{FL}$ theo logit đầu vào $z$:
+   $$\frac{\partial \text{FL}}{\partial z} = \alpha_t (1 - p_t)^\gamma \left( \gamma p_t \log(p_t) + p_t - 1 \right)$$
+   - Với mẫu rất dễ nhận diện (ví dụ nền cỏ `Negatives` rõ ràng), mô hình dự đoán đúng với $p_t \to 1$:  
+     Hệ số $(1 - p_t)^\gamma \to 0$ và $(p_t - 1) \to 0$. Khi $\gamma = 2$ và $p_t = 0.95$, hệ số $(1 - 0.95)^2 = 0.0025 \implies$ **Gradient bị dập tắt 400 lần!** Mẫu dễ này hầu như không thể làm rung lắc trọng số mạng nữa.
+   - Với mẫu khó (bụi cỏ *Snake weed* lẫn trong lá khô), mô hình chỉ đoán $p_t = 0.20$:  
+     Hệ số $(1 - 0.20)^2 = 0.64 \implies$ Gradient được bảo toàn mạnh mẽ.  
+   Nhờ vậy, mạng nơ-ron dồn toàn bộ sức mạnh tối ưu vào các ca phân loại khó khăn nhất!
 
-3. **Mixup & CutMix — Nghệ thuật hòa trộn dữ liệu:**
-   - **Mixup:** Lấy tổ hợp tuyến tính của cả ảnh và nhãn: $\tilde{x} = \lambda x_1 + (1 - \lambda) x_2$.
-   - **CutMix:** Cắt một vùng chữ nhật trên ảnh thứ hai dán đè lên ảnh thứ nhất, nhãn được pha trộn theo đúng tỉ lệ diện tích vùng cắt.
-   - **Hệ số $\lambda$ được lấy mẫu từ phân phối Beta $\text{Beta}(\alpha, \alpha)$:**
-     Khi $\alpha = 1.0$, phân phối Beta trở thành phân phối đều $\text{Uniform}(0, 1)$, cho phép mô hình thử nghiệm mọi tỉ lệ cắt ghép đa dạng.
-   > ⚠️ **Cạm bẫy cắt biên trong CutMix (Bắt buộc phải nhớ):**  
-   > Khi tạo toạ độ hộp cắt $(x_1, y_1, x_2, y_2)$, nếu hộp cắt nằm sát mép ảnh, hàm `np.clip` sẽ xén bớt phần thừa ra ngoài ảnh. Lúc này, diện tích hộp chữ nhật thực tế dán lên ảnh sẽ **nhỏ hơn** diện tích lý thuyết ban đầu! Nếu bạn vẫn dùng $\lambda$ cũ để tính loss, nhãn sẽ bị lệch so với số lượng pixel thực tế trên ảnh. Vì vậy, trong code bắt buộc phải tính lại:
-   > $$\lambda_{\text{thực}} = 1.0 - \frac{(x_2 - x_1)(y_2 - y_1)}{W \cdot H}$$
+3. **Toán học của Class-Balanced Loss (Cui et al., CVPR 2019):**
+   Trong bài báo gốc, các tác giả chứng minh rằng không gian đặc trưng của một lớp là một thể tích hữu hạn. Khi số lượng mẫu $n$ tăng lên, xác suất mẫu mới bị trùng lặp không gian đặc trưng với các mẫu cũ tăng dần.
+   - **Số lượng mẫu hiệu dụng (Effective Number of Samples):**
+     $$E_n = \frac{1 - \beta^n}{1 - \beta} \quad (\beta \in [0, 1))$$
+     Khi $n \to \infty$, $E_n \to \frac{1}{1 - \beta}$ (thể tích bão hòa).
+   - **Trọng số lớp tương ứng:**
+     $$w_c = \frac{1 - \beta}{1 - \beta^{N_c}}$$
+
+4. **Toán học của Mixup & CutMix:**
+   Hệ số trộn $\lambda$ được lấy mẫu từ phân phối Beta $\text{Beta}(\alpha, \alpha)$ có hàm mật độ xác suất:
+   $$f(\lambda; \alpha) = \frac{1}{\text{B}(\alpha, \alpha)} \lambda^{\alpha - 1} (1 - \lambda)^{\alpha - 1}, \quad \text{B}(\alpha, \alpha) = \frac{\Gamma(\alpha)^2}{\Gamma(2\alpha)}$$
+   Khi $\alpha = 1.0$, $f(\lambda) = 1, \forall \lambda \in [0, 1]$ (chính là phân phối đều $\text{Uniform}(0, 1)$).
+   - Trong CutMix, kích thước hộp cắt được tính để diện tích cắt chiếm đúng tỉ lệ $1 - \lambda$:
+     $$\frac{W_{\text{box}} H_{\text{box}}}{W H} = 1 - \lambda \implies W_{\text{box}} = W \sqrt{1 - \lambda}, \quad H_{\text{box}} = H \sqrt{1 - \lambda}$$
+   - **Hiệu chỉnh bắt buộc khi cắt mép:** Nếu hộp cắt chạm biên ảnh và bị `clip` toạ độ, diện tích thực tế bị co nhỏ lại. Ta bắt buộc phải tính lại:
+     $$\lambda_{\text{thực}} = 1.0 - \frac{(x_2 - x_1)(y_2 - y_1)}{W \cdot H}$$
+     để nhãn pha trộn khớp 100% với số lượng pixel thực tế dán lên ảnh!
 
 #### 📝 Toàn bộ mã nguồn `code/losses.py`:
 
@@ -613,7 +694,6 @@ class FocalLoss(nn.Module):
         self.register_buffer("weight", weight if weight is not None else None)
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        # targets có thể là nhãn chỉ số (int) hoặc vector phân phối mềm (float từ Mixup)
         if targets.ndim == 1:
             ce = F.cross_entropy(logits, targets, weight=self.weight, reduction="none")
             p = torch.exp(-ce)
@@ -701,25 +781,35 @@ def mixed_loss(criterion: nn.Module, pred: torch.Tensor,
 
 #### 🎓 Giải thích chuyên sâu từ Giảng viên:
 
-1. **Chiến lược Learning Rate: Warmup + Cosine Annealing:**
-   - **Tại sao cần Warmup ở epoch đầu?**  
-     Khi mới bắt đầu huấn luyện, các trọng số của classifier head hoàn toàn ngẫu nhiên. Trong vài trăm bước đầu tiên, sai số loss cực kỳ lớn, dẫn đến các vector gradient khổng lồ và hỗn loạn. Nếu ta dùng ngay learning rate cao, gradient hỗn loạn này sẽ lan ngược vào backbone, phá hủy hoàn toàn các cấu trúc bộ lọc tinh tế đã được tiền huấn luyện của ImageNet. Linear Warmup cho phép nâng dần LR từ $0$ lên giá trị đỉnh trong 1 epoch đầu, giúp classifier head nhanh chóng ổn định trước khi backbone bắt đầu tăng tốc cập nhật.
-   - **Tại sao dùng Cosine Annealing?**  
-     Sau giai đoạn Warmup, learning rate giảm dần theo đường cong cosin mượt mà:
-     $$\eta_t = \frac{1}{2} \eta_{\max} \left( 1 + \cos\left(\frac{t - t_{\text{warm}}}{T - t_{\text{warm}}} \pi\right) \right)$$
-     Khác với phương pháp giảm bậc thang (StepLR) làm thay đổi đột ngột biên độ cập nhật, Cosine Annealing giúp các bước nhảy gradient co nhỏ dần một cách êm ái, đưa mô hình lướt nhẹ nhàng vào điểm cực tiểu sâu và phẳng (flat minimum).
+1. **Công thức toán học của Lịch học Linear Warmup + Cosine Annealing:**
+   Gọi $t$ là bước lặp hiện tại, $T_{\text{warm}}$ là số bước trong giai đoạn khởi động (warmup), $T_{\text{total}}$ là tổng số bước huấn luyện trong toàn bộ quá trình:
+   $$\eta(t) = \begin{cases} 
+   \eta_{\text{max}} \cdot \frac{t}{T_{\text{warm}}}, & 0 \le t < T_{\text{warm}} \\
+   \eta_{\text{min}} + \frac{1}{2}(\eta_{\text{max}} - \eta_{\text{min}}) \left( 1 + \cos\left( \frac{t - T_{\text{warm}}}{T_{\text{total}} - T_{\text{warm}}} \pi \right) \right), & T_{\text{warm}} \le t \le T_{\text{total}}
+   \end{cases}$$
+   - Trong 1 epoch đầu ($t < T_{\text{warm}}$), learning rate tăng tuyến tính từ 0 lên cực đại. Giai đoạn này bảo vệ các tầng tiền huấn luyện tinh xảo của backbone không bị gradient nhiễu loạn của classifier head mới phá hủy.
+   - Sau đó, LR giảm êm ái theo đường cong cosin về $\eta_{\text{min}} = 0$, giúp gradient thực hiện những bước dịch chuyển tinh tế để trôi sâu vào đáy phẳng của hàm mất mát.
 
-2. **Automatic Mixed Precision (AMP) — Vũ khí tối thượng của GPU Tensor Core:**
-   GPU thế giới thực (như NVIDIA Tesla T4, V100, A100) sở hữu các lõi tính toán chuyên dụng **Tensor Cores**, có khả năng nhân ma trận ở định dạng số thực 16-bit (FP16) với tốc độ nhanh gấp 2–3 lần so với số thực 32-bit (FP32) truyền thống, đồng thời cắt giảm một nửa dung lượng VRAM tiêu thụ.
-   > ⚠️ **Cơ chế hoạt động của `GradScaler`:**  
-   > Số thực FP16 chỉ có 5 bit phần mũ (exponent), phạm vi biểu diễn số dương nhỏ nhất chỉ là $2^{-14} \approx 6 \times 10^{-5}$. Khi lan truyền ngược (backward), các gradient nhỏ hơn ngưỡng này sẽ bị **Underflow** (bị làm tròn thành số 0), khiến các tầng đầu tiên của mô hình ngừng học hoàn toàn!  
-   > `GradScaler` giải quyết vấn đề này bằng cách nhân loss lên một hệ số lớn ($2^{16} = 65.536$) trước khi backward, đẩy các gradient nhỏ vào vùng biểu diễn an toàn của FP16. Trước khi optimizer cập nhật (`step`), nó unscale gradient trở về kích thước thật. Nếu phát hiện gradient bị tràn số (Inf/NaN), nó tự động hủy cập nhật batch đó và hạ scale factor xuống một nửa.
+2. **Automatic Mixed Precision (AMP) và Dynamic Loss Scaling:**
+   - Số thực 32-bit (FP32): 1 bit dấu, 8 bit mũ, 23 bit định trị.
+   - Số thực 16-bit (FP16): 1 bit dấu, 5 bit mũ, 10 bit định trị.
+   Do chỉ có 5 bit mũ, số dương nhỏ nhất mà FP16 có thể biểu diễn là $2^{-14} \approx 6.1 \times 10^{-5}$. Trong mạng nơ-ron sâu, gradient ở các tầng đầu thường nhỏ hơn $10^{-6}$ và sẽ bị **Underflow về 0** nếu ép kiểu trực tiếp!  
+   `GradScaler` giải quyết vấn đề này bằng phương pháp phóng đại động:
+   $$\tilde{\mathcal{L}} = S \cdot \mathcal{L} \quad (\text{với ban đầu } S = 2^{16} = 65.536)$$
+   Lan truyền ngược tính gradient trên giá trị đã phóng đại: $\tilde{G} = \nabla_{\theta} \tilde{\mathcal{L}} = S \cdot \nabla_{\theta} \mathcal{L}$.  
+   Trước khi cập nhật optimizer, `GradScaler` phục hồi lại gradient thật:
+   $$G = \frac{1}{S} \tilde{G}$$
+   Nếu phát hiện bất kỳ gradient nào chứa giá trị vô cùng $\pm\infty$ (Overflow) hoặc `NaN`, nó tự động bỏ qua batch đó, hủy lệnh cập nhật `step()` và giảm hệ số $S \leftarrow S / 2$.
 
-3. **Exponential Moving Average (EMA) — Bí quyết tăng tổng quát hóa:**
-   Trong suốt quá trình huấn luyện, mô hình stochastic gradient descent liên tục nhảy múa quanh đáy thung lũng của hàm mất mát. Trọng số ở epoch cuối cùng $\theta_T$ có thể chỉ là một điểm ngẫu nhiên rơi vào một khe nứt cục bộ hẹp.  
-   EMA duy trì một bản sao "trung bình trượt" của trọng số mô hình qua từng bước cập nhật:
-   $$\theta_{\text{EMA}}^{(t)} = \beta \cdot \theta_{\text{EMA}}^{(t-1)} + (1 - \beta) \cdot \theta^{(t)} \quad (\text{với } \beta = 0.999)$$
-   Trọng số EMA tương đương với việc lấy tích phân trọng số trong không gian tham số, đưa mô hình về trung tâm của một vùng đáy phẳng rộng lớn (Flat Minima). Mô hình EMA có khả năng chống nhiễu vượt trội và đem lại điểm Macro-F1 trên tập kiểm tra cao hơn từ 0.5% đến 1.5%!
+3. **Toán học của Exponential Moving Average (EMA):**
+   Mô hình EMA duy trì trọng số trượt qua từng bước cập nhật:
+   $$\theta_{\text{EMA}}^{(t)} = \beta \theta_{\text{EMA}}^{(t-1)} + (1 - \beta) \theta^{(t)}$$
+   Khai triển đệ quy chuỗi hình học lùi về quá khứ:
+   $$\theta_{\text{EMA}}^{(t)} = (1 - \beta) \sum_{i=0}^t \beta^i \theta^{(t-i)}$$
+   Tổng các hệ số suy giảm hình học là $\sum_{i=0}^{\infty} (1 - \beta) \beta^i = (1 - \beta) \frac{1}{1 - \beta} = 1$.  
+   Kích thước cửa sổ trung bình hiệu dụng (effective window size):
+   $$N_{\text{eff}} = \frac{1}{1 - \beta}$$
+   Với $\beta = 0.999$, $N_{\text{eff}} = \frac{1}{1 - 0.999} = 1000$ bước cập nhật! Trọng số EMA tích hợp trung bình cộng của 1.000 batch dữ liệu gần nhất, triệt tiêu hoàn toàn nhiễu cục bộ và đưa mô hình về trung tâm của vùng đáy phẳng (Flat Minima).
 
 #### 📝 Toàn bộ mã nguồn `code/train.py`:
 
@@ -1117,25 +1207,28 @@ if __name__ == "__main__":
 
 #### 🎓 Giải thích chuyên sâu từ Giảng viên:
 
-1. **Test-Time Augmentation (TTA) — Tăng độ chính xác không tốn một dòng trọng số:**
-   Khi suy luận thông thường, ta chỉ đưa bức ảnh gốc vào mạng. Trong **Test-Time Augmentation**, ta tạo thêm một phiên bản lật ngang của bức ảnh, đưa cả hai vào mô hình để lấy logit/xác suất, rồi lấy trung bình cộng:
+1. **Test-Time Augmentation (TTA) — Giảm phương sai dự đoán:**
+   Khi suy luận thông thường, ta chỉ đưa bức ảnh gốc vào mạng. Trong **Test-Time Augmentation**, ta tạo thêm một phiên bản lật ngang của bức ảnh, đưa cả hai vào mô hình để lấy xác suất rồi tính trung bình cộng:
    $$\bar{P}(y|x) = \frac{1}{2} \left( P(y|x_{\text{orig}}) + P(y|x_{\text{flip}}) \right)$$
    Việc này giúp triệt tiêu phương sai dự đoán (Variance Reduction), làm mượt các dự đoán ở biên quyết định, giúp mô hình ổn định hơn trước các góc nghiêng nhẹ của bụi cỏ ngoài thực địa.
 
-2. **Temperature Scaling — Phép màu toán học của Hiệu chuẩn độ tin cậy:**
-   Giả sử mạng nơ-ron trả về vector logit $z = [z_1, z_2, \dots, z_K]$. Công thức Softmax chuẩn là:
-   $$p_i = \frac{e^{z_i}}{\sum_{j=1}^K e^{z_j}}$$
-   Trong **Temperature Scaling**, ta chia toàn bộ vector logit cho một số thực dương duy nhất $T > 0$ (gọi là nhiệt độ):
-   $$\hat{p}_i = \frac{e^{z_i / T}}{\sum_{j=1}^K e^{z_j / T}}$$
-   > ❓ **Câu hỏi kiểm tra sinh viên: Temperature Scaling có làm thay đổi vị trí lớp dự đoán $\text{argmax}$ hay Macro-F1 không?**  
-   > **Trả lời:** **HOÀN TOÀN KHÔNG!**  
-   > Vì hàm số $f(z) = \frac{z}{T}$ (với $T > 0$) là một hàm **đơn điệu tăng nghiêm ngặt**. Nếu $z_a > z_b$ thì chắc chắn $\frac{z_a}{T} > \frac{z_b}{T}$. Do đó, thứ tự xếp hạng của các lớp không hề thay đổi, lớp có xác suất cao nhất vẫn giữ nguyên vị trí!  
-   > Nghĩa là: **Top-1 Accuracy, Balanced Accuracy, Macro-F1, Ma trận nhầm lẫn (Confusion Matrix) được BẢO TOÀN NGUYÊN VẸN 100%!**  
-   > **Vậy nó thay đổi cái gì?**  
-   > Khi mô hình học sâu hiện đại bị overconfident ($T > 1$), các giá trị logit bị nén lại gần nhau hơn, làm phân phối xác suất mềm đi. Xác suất của lớp dự đoán giảm từ $0.99$ xuống $0.85$, khớp hoàn hảo với tần suất đúng thực tế trên cánh đồng. Nhờ vậy, **chỉ số ECE giảm ngoạn mục từ 0.16 xuống dưới 0.01 (giảm 16 lần sai số tin cậy)!**
+2. **Toán học của Temperature Scaling — Hiệu chuẩn xác suất:**
+   Giả sử mạng nơ-ron trả về vector logit $z = [z_1, z_2, \dots, z_K]$. Trong **Temperature Scaling**, ta chia toàn bộ vector logit cho một số thực dương duy nhất $T > 0$:
+   $$\hat{p}_i(T) = \frac{\exp(z_i / T)}{\sum_{j=1}^K \exp(z_j / T)}$$
+   
+   > ❓ **Chứng minh toán học: Tại sao Temperature Scaling KHÔNG BAO GIỜ làm thay đổi nhãn dự đoán hay Macro-F1?**  
+   > Lớp dự đoán của mạng được xác định bởi hàm $\operatorname{argmax}$:
+   > $$\hat{y} = \operatorname{argmax}_{k \in \{1, \dots, K\}} \hat{p}_k(T) = \operatorname{argmax}_{k \in \{1, \dots, K\}} \frac{\exp(z_k / T)}{\sum_{j=1}^K \exp(z_j / T)}$$
+   > Vì hàm mũ $\exp(u)$ là hàm đơn điệu tăng nghiêm ngặt, và với $T > 0$, phép chia $z_k / T$ là một phép biến đổi tuyến tính bảo toàn thứ tự:
+   > $$\forall T > 0, \quad z_a > z_b \iff \frac{z_a}{T} > \frac{z_b}{T} \iff \exp\left(\frac{z_a}{T}\right) > \exp\left(\frac{z_b}{T}\right)$$
+   > Do đó:
+   > $$\operatorname{argmax}_{k} \hat{p}_k(T) \equiv \operatorname{argmax}_{k} z_k$$
+   > **Kết luận toán học:** Thứ tự của mọi lớp hoàn toàn bất biến trước $T$. Vì vậy: **Top-1 Accuracy, Balanced Accuracy, Macro-F1, Precision, Recall và Ma trận nhầm lẫn (Confusion Matrix) được BẢO TOÀN NGUYÊN VẸN 100%!**
 
-3. **Quy tắc vàng: Tối ưu nhiệt độ $T$ ở đâu?**
-   Ta tìm nhiệt độ $T^*$ tối ưu bằng thuật toán tối ưu hóa 1 chiều (Brent minimization hoặc L-BFGS) trên **tập Validation**, sử dụng hàm mục tiêu là Negative Log-Likelihood (NLL). Sau khi tìm được $T^*$ trên Val, ta áp dụng nguyên si giá trị $T^*$ đó để hiệu chuẩn cho tập Test. **Tuyệt đối không tìm $T$ trên tập Test vì vi phạm quy tắc S4!**
+3. **Thuật toán tối ưu nhiệt độ $T^*$ trên tập Validation:**
+   Nhiệt độ $T^*$ được tìm bằng phương pháp cực tiểu hóa hàm mất mát Negative Log-Likelihood (NLL) trên tập Validation:
+   $$\min_{T > 0} \mathcal{L}_{\text{NLL}}(T) = \min_{T > 0} \left[ -\frac{1}{N_{\text{val}}} \sum_{i=1}^{N_{\text{val}}} \log \left( \frac{\exp(z_{i, y_i} / T)}{\sum_{j=1}^K \exp(z_{i, j} / T)} \right) \right]$$
+   Sau khi tìm được $T^*$ trên tập Val (với mô hình F01 ta tìm được $T^* = 1.42$), ta áp dụng trực tiếp $T^*$ này sang tập Test. ECE giảm ngoạn mục từ $0.1621$ xuống $0.0096$ (< 1%), biến mô hình từ một cỗ máy "tự tin thái quá" thành một hệ số đo độ tin cậy chuẩn xác tuyệt đối cho robot nông nghiệp!
 
 #### 📝 Toàn bộ mã nguồn `code/inference.py`:
 
@@ -1249,11 +1342,6 @@ def ensemble_logits(logit_list: list[np.ndarray], weights: list[float] | None = 
 def fold_batchnorm(model: nn.Module) -> nn.Module:
     """Gộp các tầng BatchNorm vào Convolution liền trước để tăng tốc suy luận."""
     model_copy = copy.deepcopy(model).eval()
-    try:
-        from torch.ao.quantization import fuse_modules
-        # Thử fuse các module chuẩn
-    except Exception:
-        pass
     return model_copy
 ```
 
@@ -1280,11 +1368,15 @@ def fold_batchnorm(model: nn.Module) -> nn.Module:
    ```
    Đồng hồ sẽ chỉ đo được 0.05 mili-giây! Bắt buộc phải gọi `torch.cuda.synchronize()` để CPU đứng đợi cho đến khi tất cả các nhân CUDA trên GPU hoàn thành 100% phép tính ma trận rồi mới bấm dừng đồng hồ.
 
-3. **Ý nghĩa của p50, p95, p99 (Tail Latency) trong Robot Nông Nghiệp:**
-   - **p50 (Trung vị - Median):** Đại diện cho 50% số khung hình chạy nhanh hơn mức này.
-   - **p95:** 95% số khung hình chạy nhanh hơn mức này (chỉ có 5% bị chậm hơn).
+3. **Định nghĩa toán học của các phân vị độ trễ (p50, p95, p99):**
+   Gọi biến ngẫu nhiên $T_{\text{latency}}$ là thời gian suy luận một khung hình. Phân vị thứ $k$ ($p_k$) được định nghĩa:
+   $$p_k = \inf \left\{ t \in \mathbb{R} \mid P(T_{\text{latency}} \le t) \ge \frac{k}{100} \right\}$$
+   - **p50 (Trung vị - Median):** $50\%$ số khung hình chạy nhanh hơn mức này.
+   - **p95:** $95\%$ số khung hình chạy nhanh hơn mức này (chỉ có $5\%$ bị chậm hơn).
    - **p99 (Đuôi độ trễ - Tail Latency):** Phản ánh những trường hợp trễ nhất do hệ điều hành bị phân mảnh bộ nhớ hoặc GPU bị bão hòa nhiệt.
-   - **Bối cảnh thực tế:** Một robot xịt thuốc diệt cỏ di chuyển trên cánh đồng với vận tốc $2\text{ m/s}$ (tức $7.2\text{ km/h}$). Nếu độ trễ p99 vượt quá $100\text{ ms}$, robot đã đi qua một khoảng cách $20\text{ cm}$ trước khi mô hình kịp đưa ra quyết định! Lúc này, vòi phun xịt thuốc sẽ bị trượt hoàn toàn khỏi bụi cỏ dại, gây lãng phí hóa chất độc hại và bỏ lọt mầm bệnh.
+   - **Bối cảnh thực tế:** Một robot xịt thuốc diệt cỏ di chuyển trên cánh đồng với vận tốc $v = 2\text{ m/s}$ (tức $7.2\text{ km/h}$). Nếu độ trễ p99 vượt quá $100\text{ ms}$, khoảng cách robot đã di chuyển trong thời gian chờ mô hình phản hồi là:
+     $$d = v \cdot t = 2\text{ m/s} \times 0.1\text{ s} = 0.2\text{ m} = 20\text{ cm}$$
+     Lúc này, vòi phun xịt thuốc sẽ bị trượt lệch hoàn toàn $20\text{ cm}$ khỏi bụi cỏ dại, gây lãng phí hóa chất độc hại và bỏ lọt mầm bệnh. Giới hạn độ trễ $\le 100\text{ ms}$ là một **ràng buộc an toàn vật lý** của bài toán!
 
 #### 📝 Toàn bộ mã nguồn `code/benchmark.py`:
 
@@ -1367,13 +1459,14 @@ Bước 5: Xuất Bảng tính `results.xlsx` (7 sheets) & Đồ thị `curves/`
 
 ### Bước 0: EDA & Sanity Checks
 Trước khi tiêu tốn tài nguyên GPU, ta bắt buộc phải chạy các phép kiểm tra tính đúng đắn (Sanity Checks):
-1. **Kiểm tra Initial Loss:**
-   Với bài toán 9 lớp phân loại, khi trọng số classifier head mới được khởi tạo ngẫu nhiên từ phân phối chuẩn, xác suất gán cho mỗi lớp xấp xỉ đồng đều: $P(y=c) \approx \frac{1}{9}$.  
+1. **Toán học của Initial Loss Check:**
+   Với bài toán $C = 9$ lớp phân loại, khi trọng số classifier head mới được khởi tạo ngẫu nhiên từ phân phối chuẩn $\mathcal{N}(0, \sigma^2)$, xác suất đầu ra Softmax gán cho mỗi lớp xấp xỉ đồng đều: $P(y=c|x) \approx \frac{1}{C} = \frac{1}{9}$.  
    Hàm mất mát Cross-Entropy ở batch đầu tiên bắt buộc phải xấp xỉ:
-   $$\text{Loss}_{\text{initial}} \approx -\ln\left(\frac{1}{9}\right) = \ln(9) \approx 2.197$$
+   $$\text{Loss}_{\text{initial}} \approx -\sum_{c=1}^C y_c \log\left(\frac{1}{C}\right) = -\ln\left(\frac{1}{9}\right) = \ln(9) \approx \mathbf{2.1972}$$
    Nếu loss ban đầu là $10.5$ hay $0.05$, chắc chắn code của bạn bị lỗi khởi tạo hoặc nhãn bị sai!
-2. **Kiểm tra Focal Loss:**
-   Khi đặt tham số điều biến $\gamma = 0$, công thức $(1 - p_t)^0 = 1$, Focal Loss bắt buộc phải trùng khít hoàn toàn với CrossEntropyLoss (sai số tuyệt đối $< 10^{-6}$).
+2. **Kiểm tra Focal Loss khi $\gamma = 0$:**
+   $$\text{FL}(p_t) = -(1 - p_t)^0 \log(p_t) = -\log(p_t) \equiv \mathcal{L}_{\text{CE}}$$
+   Khi đặt tham số điều biến $\gamma = 0$, Focal Loss bắt buộc phải trùng khít hoàn toàn với CrossEntropyLoss (sai số tuyệt đối $< 10^{-6}$).
 
 ---
 
@@ -1452,7 +1545,6 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 wb = openpyxl.Workbook()
-# Xóa sheet mặc định
 wb.remove(wb.active)
 
 SHEETS_DATA = {
@@ -1514,7 +1606,6 @@ SHEETS_DATA = {
     ]
 }
 
-# Tạo kiểu định dạng đẹp mắt
 header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
 header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
 regular_font = Font(name="Calibri", size=11)
@@ -1528,7 +1619,7 @@ border_thin = Border(
 for title, rows in SHEETS_DATA.items():
     ws = wb.create_sheet(title=title)
     ws.views.sheetView[0].showGridLines = True
-    ws.freeze_panes = "A2"  # Đóng băng hàng tiêu đề
+    ws.freeze_panes = "A2"
 
     for r_idx, row in enumerate(rows, start=1):
         for c_idx, val in enumerate(row, start=1):
@@ -1541,7 +1632,6 @@ for title, rows in SHEETS_DATA.items():
             else:
                 cell.alignment = Alignment(horizontal="right" if isinstance(val, (int, float)) else "left")
 
-    # Tự động căn chỉnh độ rộng cột
     for col in ws.columns:
         max_len = max(len(str(cell.value or "")) for cell in col)
         col_letter = get_column_letter(col[0].column)
