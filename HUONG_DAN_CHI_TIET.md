@@ -1880,6 +1880,8 @@ Dữ liệu trích xuất từ mô hình `F01_seed0` trên 3.502 ảnh tập Tes
 - **Mã nguồn:** Toàn bộ mã nguồn tự phát triển đặt tại thư mục `code/`, vượt qua 38/38 bài kiểm tra tự động (`tests/`).
 - **File số liệu:** Chi tiết 7 sheets bảng tính lưu tại `results.xlsx`.
 - **Biểu đồ huấn luyện:** 11 đồ thị đường cong hàm mất mát và F1 lưu tại thư mục `curves/`.
+- **Thư mục dự đoán:** 25 file CSV dự đoán theo seed lưu tại thư mục `predictions/`.
+- **Link Colab Notebook:** [Google Colab Notebook (lab_day2.ipynb)](https://colab.research.google.com/github/awun0105/K4-Day02-LamQuangAnhQuan-2A202602467/blob/main/submissions/2A202602467_LamQuangAnhQuan/code/lab_day2.ipynb).
 
 ---
 

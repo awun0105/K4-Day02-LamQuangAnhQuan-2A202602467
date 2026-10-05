@@ -9,7 +9,7 @@ Bài nộp: **Lab Day 2 - Tối ưu hoá quy trình huấn luyện & suy luận 
 ## 1. Liên kết Thực nghiệm & Môi trường Chạy lại
 
 - **Link Colab Session / Notebook tái lập**:  
-  [Google Colab Runtime Session](https://colab.research.google.com/notebooks/empty.ipynb?dbu=%2Ftun%2Fm%2Fgpu-t4-s-kkb-usw1b0-22esitd9358sy#datalabBackendUrl=https://colab.research.google.com/tun/m/gpu-t4-s-kkb-usw1b0-22esitd9358sy)
+  [Google Colab Notebook (lab_day2.ipynb)](https://colab.research.google.com/github/awun0105/K4-Day02-LamQuangAnhQuan-2A202602467/blob/main/submissions/2A202602467_LamQuangAnhQuan/code/lab_day2.ipynb)
 - **Môi trường phần cứng**:
   - Máy chủ huấn luyện: Google Colab GPU Tesla T4 (15.360 MiB VRAM), Intel Xeon CPU @ 2.20GHz.
   - Máy tính cá nhân (kiểm thử cục bộ): ThinkPad P53, GPU Quadro T2000 (4GB VRAM), CPU Intel Core i7-9750H.

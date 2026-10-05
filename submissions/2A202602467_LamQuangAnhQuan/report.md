@@ -149,4 +149,4 @@ Với mô hình F01 đã huấn luyện hoàn thiện, các phương pháp suy l
 - **File bảng kết quả:** [results.xlsx](file:///home/lqaq/PROJECT/AI20K/PHASE02%20/day16_03102026/LAB/K4-Day02-LamQuangAnhQuan-2A202602467/submissions/2A202602467_LamQuangAnhQuan/results.xlsx) (đầy đủ 7 sheets: Backbones, Training, Inference, Final, PerClass, Latency, Summary).
 - **Thư mục biểu đồ:** `submissions/2A202602467_LamQuangAnhQuan/curves/` (11 file PNG minh họa tiến trình học của toàn bộ các thí nghiệm).
 - **Thư mục dự đoán:** `submissions/2A202602467_LamQuangAnhQuan/predictions/` (đầy đủ 25 file CSV dự đoán theo seed).
-- **Link Colab Session:** [Google Colab T4 Session Link](https://colab.research.google.com/notebooks/empty.ipynb?dbu=%2Ftun%2Fm%2Fgpu-t4-s-kkb-usw1b0-22esitd9358sy#datalabBackendUrl=https://colab.research.google.com/tun/m/gpu-t4-s-kkb-usw1b0-22esitd9358sy).
+- **Link Colab Notebook:** [Google Colab Notebook (lab_day2.ipynb)](https://colab.research.google.com/github/awun0105/K4-Day02-LamQuangAnhQuan-2A202602467/blob/main/submissions/2A202602467_LamQuangAnhQuan/code/lab_day2.ipynb).
